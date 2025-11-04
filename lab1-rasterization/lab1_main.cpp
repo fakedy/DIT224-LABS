@@ -78,7 +78,7 @@ void initialize()
 	// Define the colors for each of the three vertices of the triangle
 	const float colors[] = {
 		//   R     G     B
-		1.0f, 1.0f, 1.0f, // White
+		0.0f, 1.0f, 1.0f, // White
 		1.0f, 1.0f, 1.0f, // White
 		1.0f, 1.0f, 1.0f  // White
 	};
@@ -116,7 +116,22 @@ void initialize()
 	//		   object, and then by adding a triangle to an existing VAO.
 	//////////////////////////////////////////////////////////////////////////////
 
+	const float secondPositions[] = {
+		//	 X      Y     Z
+		0.0f,  0.5f,  1.0f, // v0
+		-0.5f, -0.5f, 1.0f, // v1
+		0.5f,  -0.5f, 1.0f  // v2
+	};
 
+	GLuint newVBO;
+	glGenBuffers(1, &newVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, newVBO);
+	glBufferData(GL_VERTEX_ARRAY, labhelper::array_length(secondPositions), &secondPositions, GL_STATIC_DRAW);
+
+	GLuint newVAO;
+	glGenVertexArrays(1, &newVAO);
+	glBindVertexArray(newVAO);
+	
 
 	///////////////////////////////////////////////////////////////////////////
 	// Create shaders
@@ -204,7 +219,7 @@ void display(void)
 	glViewport(0, 0, w, h); // Set viewport
 
 	glClearColor(g_clearColor[0], g_clearColor[1], g_clearColor[2], 1.0); // Set clear color
-	glClear(GL_BUFFER); // Clears the color buffer and the z-buffer
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clears the color buffer and the z-buffer
 	                    // Instead of glClear(GL_BUFFER) the call should be glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
 	// We disable backface culling for this tutorial, otherwise care must be taken with the winding order
@@ -215,6 +230,7 @@ void display(void)
 	glUseProgram(shaderProgram); // Set the shader program to use for this draw call
 
 	// Task 5: Set the `triangleColor` uniform in the shader to `g_triangleColor`
+	glUniform3fv(glGetUniformLocation(shaderProgram, "g_triangleColor"), 1, &g_triangleColor[0]);
 
 	// Bind the vertex array object that contains all the vertex data.
 	glBindVertexArray(vertexArrayObject);
@@ -283,7 +299,7 @@ int main(int argc, char* argv[])
 		// Task 1: Uncomment the call to gui below to show the GUI
 		///////////////////////////////////////////////////////////////////////////
 		// Then render overlay GUI.
-		// gui();
+		gui();
 
 		// Render the GUI.
 		ImGui::Render();
