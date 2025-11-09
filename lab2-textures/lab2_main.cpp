@@ -45,7 +45,12 @@ GLuint shaderProgram;
 // the vertex data (in positionBuffer) and color data per vertex (in colorBuffer)
 GLuint positionBuffer, colorBuffer, indexBuffer, vertexArrayObject;
 
+GLuint explosionVAO;
 
+
+// global texture variable
+GLuint texture;
+GLuint explosionTexture;
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -90,13 +95,28 @@ void initialize()
 	//			Set up the attrib pointer.
 	//			Enable the vertex attrib array.
 	///////////////////////////////////////////////////////////////////////////
+	float texcoords[] = {
+	0.0f, 0.0f,    // (u,v) for v0
+	0.0f, 15.0f,   // (u,v) for v1
+	1.0f, 15.0f,   // (u,v) for v2
+	1.0f, 0.0f     // (u,v) for v3
+	};
+
+	GLuint texBuffer;
+	glGenBuffers(1, &texBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, texBuffer);
+
+	glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(texcoords) * sizeof(float), texcoords, GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 2, GL_FLOAT, false /*normalized*/, 0 /*stride*/, 0 /*offset*/);
+	glEnableVertexAttribArray(1);
+
 
 	///////////////////////////////////////////////////////////////////////////
 	// Create the element array buffer object
 	///////////////////////////////////////////////////////////////////////////
 	const int indices[] = {
-		0, 1, 3, // Triangle 1
-		1, 2, 3  // Triangle 2
+		3, 1, 0, // Triangle 1
+		3, 2, 1  // Triangle 2
 	};
 	glGenBuffers(1, &indexBuffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -115,6 +135,93 @@ void initialize()
 	//			Load Texture
 	//************************************
 	// Task 2
+
+	int w, h, comp;
+	unsigned char* image = stbi_load("../scenes/textures/asphalt.jpg", &w, &h, &comp, STBI_rgb_alpha);
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 16.0f);
+
+
+	/////////////////////
+	/// init the stuff for the explosion quad and texture
+	////////////////////
+
+
+	const float quadVertices[] = {
+	2.0f,  0.0f,  -20.0f, // v0
+	2.0f,  10.0f, -20.0f, // v1
+	12.0f, 10.0f, -20.0f, // v2
+	12.0f, 0.0f,  -20.0f  // v3
+	};
+
+	float quadTexcoords[] = {
+		0.0f, 0.0f, // (u,v) for v0
+		0.0f, 1.0f, // (u,v) for v1
+		1.0f, 1.0f, // (u,v) for v2
+		1.0f, 0.0f  // (u,v) for v3
+	};
+
+	const int quadIndices[] = {
+		3, 1, 0, // Triangle 1
+		3, 2, 1  // Triangle 2
+	};
+
+
+	glGenVertexArrays(1, &explosionVAO);
+	glBindVertexArray(explosionVAO);
+
+	GLuint explosionVBO;
+	glGenBuffers(1, &explosionVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, explosionVBO);
+
+	glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(quadVertices) * sizeof(float), &quadVertices, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+
+	GLuint explosionTexBuffer;
+	glGenBuffers(1, &explosionTexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, explosionTexBuffer);
+
+	glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(quadTexcoords) * sizeof(float), &quadTexcoords, GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(1);
+
+	GLuint explosionIndicesBuffer;
+	glGenBuffers(1, &explosionIndicesBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, explosionIndicesBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, labhelper::array_length(quadIndices) * sizeof(float), quadIndices,
+		GL_STATIC_DRAW);
+
+	image = stbi_load("../scenes/textures/explosion.png", &w, &h, &comp, STBI_rgb_alpha);
+
+	glGenTextures(1, &explosionTexture);
+	glBindTexture(GL_TEXTURE_2D, explosionTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 16.0f);
+
 }
 
 
@@ -137,7 +244,7 @@ void display(void)
 
 	// We disable backface culling for this tutorial, otherwise care must be taken with the winding order
 	// of the vertices. It is however a lot faster to enable culling when drawing large scenes.
-	glDisable(GL_CULL_FACE); //glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 	// Disable depth testing
 	glDisable(GL_DEPTH_TEST);
 	// Set the shader program to use for this draw call
@@ -158,7 +265,59 @@ void display(void)
 
 	// Task 3.1
 
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	
+	switch (mag)
+	{
+	case 0:
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		break;
+	case 1:
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		break;
+	default:
+		break;
+	}
+
+	switch (mini) {
+	case 0:
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		break;
+	case 1:
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		break;
+	case 2:
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+		break;
+	case 3:
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+		break;
+	case 4:
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+		break;
+	case 5:
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		break;
+	default:
+		break;
+	}
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropy);
+
+
+
 	glBindVertexArray(vertexArrayObject);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+	
+
+	glBindTexture(GL_TEXTURE_2D, explosionTexture);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glBindVertexArray(explosionVAO);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 

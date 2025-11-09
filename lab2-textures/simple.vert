@@ -1,12 +1,14 @@
 #version 420
 
 layout(location = 0) in vec3 in_position;
+layout(location = 1) in vec2 texCoordIn;
 
 // Task 1: Add input and output variables for the texture coordinates
 
 uniform mat4 projectionMatrix;
 uniform vec3 cameraPosition;
 
+out vec2 texCoord;
 
 void main()
 {
@@ -21,4 +23,6 @@ void main()
 	gl_Position = projectionMatrix * pos;
 
 	// Task 1: Copy the value received for the texcoord to the out variable sent to the fragment shader
+
+	texCoord = texCoordIn;
 }
