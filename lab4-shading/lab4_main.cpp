@@ -105,33 +105,41 @@ void cleanupScenes()
 
 void loadScenes()
 {
-	scenes["Ship"] = { {
-		                   // Models
-		                   labhelper::loadModelFromOBJ("../scenes/space-ship.obj"),
-		               },
-		               {
-		                   // Camera
-		                   vec3(-30, 10, 30),
-		                   normalize(-vec3(-30, 5, 30)),
-		               } };
-	scenes["Material Test"] = { {
-		                            // Models
-		                            labhelper::loadModelFromOBJ("../scenes/materialtest.obj"),
-		                        },
-		                        {
-		                            // Camera
-		                            vec3(0, 30, 30),
-		                            normalize(-vec3(0, 30, 30)),
-		                        } };
-	scenes["Cube"] = { {
-		                   // Models
-		                   labhelper::loadModelFromOBJ("../scenes/cube.obj"),
-		               },
-		               {
-		                   // Camera
-		                   vec3(2, 2, 2),
-		                   normalize(-vec3(2, 2, 2)),
-		               } };
+	scenes["Ship"] = { 
+		{
+			// Models
+			labhelper::loadModelFromOBJ("../scenes/space-ship.obj"),
+		},
+		{
+			// Camera
+			vec3(-30, 10, 30),
+			normalize(-vec3(-30, 5, 30)),
+		}
+	};
+
+	scenes["Material Test"] = {
+		{
+			// Models
+			labhelper::loadModelFromOBJ("../scenes/materialtest.obj"),
+		},
+		{
+			// Camera
+			vec3(0, 30, 30),
+			normalize(-vec3(0, 30, 30)),
+		}
+	};
+
+	scenes["Cube"] = {
+		{
+			// Models
+			labhelper::loadModelFromOBJ("../scenes/cube.obj"),
+		},
+		{
+			// Camera
+			vec3(2, 2, 2),
+			normalize(-vec3(2, 2, 2)),
+		}
+	};
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -166,8 +174,37 @@ void initFullScreenQuad()
 	///////////////////////////////////////////////////////////////////////////
 	if(fullScreenQuadVAO == 0)
 	{
+
+		float vertices[] = {
+			// X,    Y
+			-1.0f, -1.0f,
+			 1.0f, -1.0f,
+			 1.0f,  1.0f,
+			-1.0f,  1.0f
+		};
+
+		unsigned int indices[] = {
+			0, 1, 2,
+			0, 2, 3
+		};
+
 		// Task 4.1
-		// ...
+		glGenVertexArrays(1, &fullScreenQuadVAO);
+		glBindVertexArray(fullScreenQuadVAO);
+		
+		GLuint VBO;
+		glGenBuffers(1, &VBO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+		glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(vertices) * sizeof(float), vertices, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 2, GL_FLOAT, false /*normalized*/, 0 /*stride*/, 0 /*offset*/);
+		glEnableVertexAttribArray(0);
+
+		GLuint EBO;
+		glGenBuffers(1, &EBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, labhelper::array_length(indices) * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+
 	}
 }
 
@@ -179,8 +216,17 @@ void drawFullScreenQuad()
 	///////////////////////////////////////////////////////////////////////////
 	// draw a quad at full screen
 	///////////////////////////////////////////////////////////////////////////
-	// Task 4.2
-	// ...
+	// Task 4.
+	GLboolean depthState;
+	glGetBooleanv(GL_DEPTH_TEST, &depthState);
+	if(depthState)
+		glDisable(GL_DEPTH_TEST);
+
+	glBindVertexArray(fullScreenQuadVAO);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+	if(depthState)
+		glEnable(GL_DEPTH_TEST);
 }
 
 
@@ -339,6 +385,12 @@ void display(void)
 	// Task 4.3 - Render a fullscreen quad, to generate the background from the
 	//            environment map.
 	///////////////////////////////////////////////////////////////////////////
+
+	glUseProgram(backgroundProgram);
+	labhelper::setUniformSlow(backgroundProgram, "environment_multiplier", environment_multiplier);
+	labhelper::setUniformSlow(backgroundProgram, "inv_PV", inverse(projectionMatrix * viewMatrix));
+	labhelper::setUniformSlow(backgroundProgram, "camera_pos", camera.position);
+	drawFullScreenQuad();
 
 	///////////////////////////////////////////////////////////////////////////
 	// Render the .obj models
