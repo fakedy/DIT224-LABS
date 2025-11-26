@@ -360,6 +360,7 @@ void display(void)
 		shadowMapFB.resize(shadowMapResolution, shadowMapResolution);
 	}
 
+	/*
 	if (shadowMapClampMode == ClampMode::Edge) {
 		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -373,6 +374,12 @@ void display(void)
 		vec4 border(shadowMapClampBorderShadowed ? 0.f : 1.f);
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border.x);
 	}
+	*/
+
+
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 
 
 
@@ -380,8 +387,17 @@ void display(void)
 	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
 
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	if (useHardwarePCF)
+	{
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+	else
+	{
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
 
 
 	///////////////////////////////////////////////////////////////////////////

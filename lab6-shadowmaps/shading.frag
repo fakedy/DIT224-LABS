@@ -43,13 +43,14 @@ in vec2 texCoord;
 in vec3 viewSpaceNormal;
 in vec3 viewSpacePosition;
 
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Input uniform variables
 ///////////////////////////////////////////////////////////////////////////////
 uniform mat4 viewInverse;
 uniform vec3 viewSpaceLightPosition;
 
-uniform mat4 lightMatrix;
 
 uniform vec3 viewSpaceLightDir;
 uniform float spotOuterAngle;
@@ -58,7 +59,8 @@ uniform bool useSpotLight;
 uniform bool useSoftFalloff;
 
 in vec4 shadowMapCoord;
-layout(binding = 10) uniform sampler2D shadowMapTex;
+//layout(binding = 10) uniform sampler2D shadowMapTex;
+layout(binding = 10) uniform sampler2DShadow shadowMapTex;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Output color
@@ -192,9 +194,9 @@ void main()
 {
 	float attenuation = 1.0;
 
-	vec4 shadowMapCoord = lightMatrix * vec4(viewSpacePosition, 1.f);
-	float depth = texture(shadowMapTex, shadowMapCoord.xy / shadowMapCoord.w).x;
-	float visibility = (depth >= (shadowMapCoord.z / shadowMapCoord.w)) ? 1.0 : 0.0;
+	//float depth = texture(shadowMapTex, shadowMapCoord.xy / shadowMapCoord.w).x;
+	//float visibility = (depth >= (shadowMapCoord.z / shadowMapCoord.w)) ? 1.0 : 0.0;
+	float visibility = textureProj(shadowMapTex, shadowMapCoord);
 
 	if(useSpotLight){
 
