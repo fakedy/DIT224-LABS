@@ -133,8 +133,18 @@ void tracePaths(const glm::mat4& V, const glm::mat4& P)
 			primaryRay.o = camera_pos;
 			// Create a ray that starts in the camera position and points toward
 			// the current pixel on a virtual screen.
-			vec2 screenCoord = vec2(float(x) / float(rendered_image.width),
-			                        float(y) / float(rendered_image.height));
+			
+			
+			float jitterX = 0;
+			float jitterY = 0;
+
+			if (settings.jittering) { // Anti-aliasing
+				jitterX = randf();
+				jitterY = randf();
+			}
+
+			vec2 screenCoord = vec2(float(x + jitterX) / float(rendered_image.width),
+			                        float(y + jitterY) / float(rendered_image.height));
 			// Calculate direction
 			vec4 viewCoord = vec4(screenCoord.x * 2.0f - 1.0f, screenCoord.y * 2.0f - 1.0f, 1.0f, 1.0f);
 			vec3 p = homogenize(inverse(P * V) * viewCoord);

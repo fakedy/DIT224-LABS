@@ -476,6 +476,7 @@ void gui()
 		ImGui::SliderInt("Subsampling", &pathtracer::settings.subsampling, 1, 16);
 		ImGui::SliderInt("Max Bounces", &pathtracer::settings.max_bounces, 0, 16);
 		ImGui::SliderInt("Max Paths Per Pixel", &pathtracer::settings.max_paths_per_pixel, 0, 1024);
+		ImGui::Checkbox("Jittering", &pathtracer::settings.jittering);
 		if(ImGui::Button("Restart Pathtracing"))
 		{
 			pathtracer::restart();

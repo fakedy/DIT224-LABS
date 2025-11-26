@@ -26,6 +26,7 @@ extern struct Settings
 	int subsampling;
 	int max_bounces;
 	int max_paths_per_pixel;
+	bool jittering;
 };
 extern Settings settings;
 
