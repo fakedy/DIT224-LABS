@@ -49,6 +49,17 @@ in vec3 viewSpacePosition;
 uniform mat4 viewInverse;
 uniform vec3 viewSpaceLightPosition;
 
+uniform mat4 lightMatrix;
+
+uniform vec3 viewSpaceLightDir;
+uniform float spotOuterAngle;
+uniform float spotInnerAngle;
+uniform bool useSpotLight;
+uniform bool useSoftFalloff;
+
+in vec4 shadowMapCoord;
+layout(binding = 10) uniform sampler2D shadowMapTex;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Output color
 ///////////////////////////////////////////////////////////////////////////////
@@ -179,9 +190,32 @@ vec3 calculateIndirectIllumination(vec3 wo, vec3 n, vec3 base_color)
 
 void main()
 {
-	float visibility = 1.0;
 	float attenuation = 1.0;
 
+	vec4 shadowMapCoord = lightMatrix * vec4(viewSpacePosition, 1.f);
+	float depth = texture(shadowMapTex, shadowMapCoord.xy / shadowMapCoord.w).x;
+	float visibility = (depth >= (shadowMapCoord.z / shadowMapCoord.w)) ? 1.0 : 0.0;
+
+	if(useSpotLight){
+
+		vec3 posToLight = normalize(viewSpaceLightPosition - viewSpacePosition);
+		float cosAngle = dot(posToLight, -viewSpaceLightDir);
+	
+		if(!useSoftFalloff)
+		{
+			// Spotlight with hard border:
+			attenuation = (cosAngle > spotOuterAngle) ? 1.0 : 0.0;
+		}
+		else
+		{
+			// Spotlight with soft border:
+			attenuation = smoothstep(spotOuterAngle, spotInnerAngle, cosAngle);
+		}
+
+		visibility *= attenuation;
+
+
+	}
 
 	vec3 wo = -normalize(viewSpacePosition);
 	vec3 n = normalize(viewSpaceNormal);
@@ -206,6 +240,8 @@ void main()
 	{
 		emission_term = texture(emissiveMap, texCoord).rgb;
 	}
+
+
 
 	vec3 shading = direct_illumination_term + indirect_illumination_term + emission_term;
 
