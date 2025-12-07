@@ -53,6 +53,8 @@ float polygonOffset_units = 6800.0f;
 ///////////////////////////////////////////////////////////////////////////////
 FboInfo ssaoFB;
 FboInfo ssaoFBOutput;
+int nof_samples = 64;
+float hemisphere_radius = 0.5f;
 
 ///////////////////////////////////////////////////////////////////////////////
 // postfx
@@ -415,6 +417,10 @@ void display(void)
 
 	glm::mat4 inverseProjMatrix = glm::inverse(projMatrix);
 	labhelper::setUniformSlow(ssaoOutputProgram, "inverseProjectionMatrix", inverseProjMatrix);
+	labhelper::setUniformSlow(ssaoOutputProgram, "projectionMatrix", projMatrix);
+
+	labhelper::setUniformSlow(ssaoOutputProgram, "nof_samples", nof_samples);
+	labhelper::setUniformSlow(ssaoOutputProgram, "hemisphere_radius", hemisphere_radius);
 	
 	labhelper::drawFullScreenQuad();
 
@@ -560,6 +566,9 @@ void gui()
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
 	            ImGui::GetIO().Framerate);
 	// ----------------------------------------------------------
+
+	ImGui::SliderInt("SSAO samples", &nof_samples, 0, 1024);
+	ImGui::SliderFloat("SSAO hemisphere radius", &hemisphere_radius, 0.0f, 1.0f);
 }
 
 int main(int argc, char* argv[])
