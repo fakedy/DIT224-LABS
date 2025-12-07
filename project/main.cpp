@@ -53,6 +53,10 @@ float polygonOffset_units = 6800.0f;
 ///////////////////////////////////////////////////////////////////////////////
 FboInfo ssaoFB;
 
+///////////////////////////////////////////////////////////////////////////////
+// postfx
+///////////////////////////////////////////////////////////////////////////////
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Various globals
@@ -77,6 +81,7 @@ GLuint backgroundProgram;
 GLuint depthProgram;
 GLuint ssaoInputProgram;
 GLuint ssaoOutputProgram;
+GLuint postfxProgram;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Environment
@@ -169,6 +174,13 @@ void loadShaders(bool is_reload)
 	}
 	*/
 
+	shader = labhelper::loadShaderProgram("../project/postFx.vert",
+		"../project/postFx.frag");
+	if (shader != 0)
+	{
+		postfxProgram = shader;
+	}
+
 
 }
 
@@ -236,7 +248,6 @@ void drawBackground(const mat4& viewMatrix, const mat4& projectionMatrix)
 	labhelper::setUniformSlow(backgroundProgram, "environment_multiplier", environment_multiplier);
 	labhelper::setUniformSlow(backgroundProgram, "inv_PV", inverse(projectionMatrix * viewMatrix));
 	labhelper::setUniformSlow(backgroundProgram, "camera_pos", cameraPosition);
-	labhelper::drawFullScreenQuad();
 }
 
 
@@ -380,10 +391,15 @@ void display(void)
 	///////////////////////////////////////////////////////////////////////////
 	// SSAO pass
 	///////////////////////////////////////////////////////////////////////////
+
 	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFB.framebufferId);
+	if(ssaoFB.width != windowWidth || ssaoFB.height != windowHeight)
+		ssaoFB.resize(windowWidth, windowHeight);
+
 	glViewport(0, 0, ssaoFB.width, ssaoFB.height);
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 
 	drawScene(ssaoInputProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
 	
@@ -400,6 +416,19 @@ void display(void)
 	drawBackground(viewMatrix, projMatrix);
 	drawScene(shaderProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
 	debugDrawLight(viewMatrix, projMatrix, vec3(lightPosition));
+
+	///////////////////////////////////////////////////////////////////////////
+	// postfx
+	///////////////////////////////////////////////////////////////////////////
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, windowWidth, windowHeight);
+	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glUseProgram(postfxProgram);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, ssaoFB.colorTextureTargets[0]);
+	labhelper::drawFullScreenQuad();
 
 
 
