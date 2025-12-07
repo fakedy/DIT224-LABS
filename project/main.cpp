@@ -166,14 +166,14 @@ void loadShaders(bool is_reload)
 		ssaoInputProgram = shader;
 	}
 
-	/*
-	shader = labhelper::loadShaderProgram("../lab6-shadowmaps/ssaoOutput.vert",
-		"../lab6-shadowmaps/ssaoOutput.frag");
+	
+	shader = labhelper::loadShaderProgram("../project/ssaoOutput.vert",
+		"../project/ssaoOutput.frag");
 	if (shader != 0)
 	{
 		ssaoOutputProgram = shader;
 	}
-	*/
+	
 
 	shader = labhelper::loadShaderProgram("../project/postFx.vert",
 		"../project/postFx.frag");
@@ -401,15 +401,27 @@ void display(void)
 	if (ssaoFBOutput.width != windowWidth || ssaoFBOutput.height != windowHeight)
 		ssaoFBOutput.resize(windowWidth, windowHeight);
 	glViewport(0, 0, ssaoFBOutput.width, ssaoFBOutput.height);
-	
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	drawScene(ssaoOutputProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
+	glClearColor(1.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glUseProgram(ssaoOutputProgram);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, ssaoFB.colorTextureTargets[0]);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, ssaoFB.depthBuffer);
+
+	glm::mat4 inverseProjMatrix = glm::inverse(projMatrix);
+	labhelper::setUniformSlow(ssaoOutputProgram, "inverseProjectionMatrix", inverseProjMatrix);
+	
+	labhelper::drawFullScreenQuad();
 
 	///////////////////////////////////////////////////////////////////////////
 	// Draw from camera
 	///////////////////////////////////////////////////////////////////////////
+	
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, windowWidth, windowHeight);
 	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
@@ -424,15 +436,14 @@ void display(void)
 	///////////////////////////////////////////////////////////////////////////
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glViewport(0, 0, windowWidth, windowHeight);
+
 	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glUseProgram(postfxProgram);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, ssaoFB.colorTextureTargets[0]);
+	glBindTexture(GL_TEXTURE_2D, ssaoFBOutput.colorTextureTargets[0]);
 	labhelper::drawFullScreenQuad();
-
-
 
 }
 
