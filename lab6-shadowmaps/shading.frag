@@ -193,9 +193,6 @@ vec3 calculateIndirectIllumination(vec3 wo, vec3 n, vec3 base_color)
 void main()
 {
 	float attenuation = 1.0;
-
-	//float depth = texture(shadowMapTex, shadowMapCoord.xy / shadowMapCoord.w).x;
-	//float visibility = (depth >= (shadowMapCoord.z / shadowMapCoord.w)) ? 1.0 : 0.0;
 	float visibility = textureProj(shadowMapTex, shadowMapCoord);
 
 	if(useSpotLight){

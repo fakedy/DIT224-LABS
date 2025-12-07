@@ -28,6 +28,28 @@ using namespace glm;
 using std::min;
 using std::max;
 
+
+///////////////////////////////////////////////////////////////////////////////
+// Shadow map
+///////////////////////////////////////////////////////////////////////////////
+enum ClampMode
+{
+	Edge = 1,
+	Border = 2
+};
+
+FboInfo shadowMapFB;
+int shadowMapResolution = 1024;
+int shadowMapClampMode = ClampMode::Edge;
+bool shadowMapClampBorderShadowed = false;
+bool usePolygonOffset = true;
+bool useSoftFalloff = false;
+bool useHardwarePCF = false;
+float polygonOffset_factor = .4f;
+float polygonOffset_units = 6800.0f;
+
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Various globals
 ///////////////////////////////////////////////////////////////////////////////
@@ -48,6 +70,9 @@ bool g_isMouseDragging = false;
 GLuint shaderProgram;       // Shader for rendering the final image
 GLuint simpleShaderProgram; // Shader used to draw the shadow map
 GLuint backgroundProgram;
+GLuint depthProgram;
+GLuint ssaoInputProgram;
+GLuint ssaoOutputProgram;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Environment
@@ -64,7 +89,12 @@ vec3 point_light_color = vec3(1.f, 1.f, 1.f);
 
 float point_light_intensity_multiplier = 10000.0f;
 
-
+float lightAzimuth = 0.f;
+float lightZenith = 45.f;
+float lightDistance = 55.f;
+bool animateLight = true;
+float innerSpotlightAngle = 17.5f;
+float outerSpotlightAngle = 22.5f;
 
 
 
@@ -111,6 +141,30 @@ void loadShaders(bool is_reload)
 	{
 		shaderProgram = shader;
 	}
+
+	shader = labhelper::loadShaderProgram("../lab6-shadowmaps/depth.vert",
+		"../lab6-shadowmaps/depth.frag");
+	if (shader != 0)
+	{
+		depthProgram = shader;
+	}
+
+	shader = labhelper::loadShaderProgram("../lab6-shadowmaps/ssaoInput.vert",
+		"../lab6-shadowmaps/ssaoInput.frag");
+	if (shader != 0)
+	{
+		ssaoInputProgram = shader;
+	}
+
+	shader = labhelper::loadShaderProgram("../lab6-shadowmaps/ssaoOutput.vert",
+		"../lab6-shadowmaps/ssaoOutput.frag");
+	if (shader != 0)
+	{
+		ssaoOutputProgram = shader;
+	}
+
+
+
 }
 
 
@@ -195,10 +249,22 @@ void drawScene(GLuint currentShaderProgram,
 	vec4 viewSpaceLightPosition = viewMatrix * vec4(lightPosition, 1.0f);
 	labhelper::setUniformSlow(currentShaderProgram, "point_light_color", point_light_color);
 	labhelper::setUniformSlow(currentShaderProgram, "point_light_intensity_multiplier",
-	                          point_light_intensity_multiplier);
+		point_light_intensity_multiplier);
 	labhelper::setUniformSlow(currentShaderProgram, "viewSpaceLightPosition", vec3(viewSpaceLightPosition));
 	labhelper::setUniformSlow(currentShaderProgram, "viewSpaceLightDir",
-	                          normalize(vec3(viewMatrix * vec4(-lightPosition, 0.0f))));
+		normalize(vec3(viewMatrix * vec4(-lightPosition, 0.0f))));
+	labhelper::setUniformSlow(currentShaderProgram, "spotOuterAngle", std::cos(radians(outerSpotlightAngle)));
+
+	labhelper::setUniformSlow(currentShaderProgram, "useSoftFalloff", useSoftFalloff ? 1 : 0);
+	labhelper::setUniformSlow(currentShaderProgram, "spotInnerAngle", std::cos(radians(innerSpotlightAngle)));
+
+
+	glActiveTexture(GL_TEXTURE10);
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+
+	mat4 lightMatrix = translate(vec3(0.5f)) * scale(vec3(0.5f)) * lightProjectionMatrix * lightViewMatrix * inverse(viewMatrix);
+
+	labhelper::setUniformSlow(currentShaderProgram, "lightMatrix", lightMatrix);
 
 
 	// Environment
@@ -269,6 +335,47 @@ void display(void)
 	glBindTexture(GL_TEXTURE_2D, reflectionMap);
 	glActiveTexture(GL_TEXTURE0);
 
+
+	if (shadowMapFB.width != shadowMapResolution || shadowMapFB.height != shadowMapResolution) {
+		shadowMapFB.resize(shadowMapResolution, shadowMapResolution);
+	}
+
+
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+
+
+
+
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+
+
+
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+
+	///////////////////////////////////////////////////////////////////////////
+	// Draw Shadow Map
+	///////////////////////////////////////////////////////////////////////////
+
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFB.framebufferId);
+	glViewport(0, 0, shadowMapFB.width, shadowMapFB.height);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(polygonOffset_factor, polygonOffset_units);
+
+	drawScene(depthProgram, lightViewMatrix, lightProjMatrix, lightViewMatrix, lightProjMatrix);
+
+
+	///////////////////////////////////////////////////////////////////////////
+	// SSAO pass
+	///////////////////////////////////////////////////////////////////////////
+	glBindFramebuffer(GL_FRAMEBUFFER, )
 
 
 	///////////////////////////////////////////////////////////////////////////
