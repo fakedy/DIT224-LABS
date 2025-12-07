@@ -52,6 +52,7 @@ float polygonOffset_units = 6800.0f;
 // SSAO
 ///////////////////////////////////////////////////////////////////////////////
 FboInfo ssaoFB;
+FboInfo ssaoFBOutput;
 
 ///////////////////////////////////////////////////////////////////////////////
 // postfx
@@ -361,17 +362,9 @@ void display(void)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 
-
-
-
-	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
-
-
-
-
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	///////////////////////////////////////////////////////////////////////////
 	// Draw Shadow Map
@@ -386,7 +379,7 @@ void display(void)
 	glPolygonOffset(polygonOffset_factor, polygonOffset_units);
 
 	drawScene(depthProgram, lightViewMatrix, lightProjMatrix, lightViewMatrix, lightProjMatrix);
-
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	///////////////////////////////////////////////////////////////////////////
 	// SSAO pass
@@ -402,8 +395,17 @@ void display(void)
 
 
 	drawScene(ssaoInputProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
-	
 
+	// SSOA OUTPUT SHADER
+	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBOutput.framebufferId);
+	if (ssaoFBOutput.width != windowWidth || ssaoFBOutput.height != windowHeight)
+		ssaoFBOutput.resize(windowWidth, windowHeight);
+	glViewport(0, 0, ssaoFBOutput.width, ssaoFBOutput.height);
+	
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	drawScene(ssaoOutputProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
 
 	///////////////////////////////////////////////////////////////////////////
 	// Draw from camera
