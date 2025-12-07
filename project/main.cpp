@@ -48,6 +48,10 @@ bool useHardwarePCF = false;
 float polygonOffset_factor = .4f;
 float polygonOffset_units = 6800.0f;
 
+///////////////////////////////////////////////////////////////////////////////
+// SSAO
+///////////////////////////////////////////////////////////////////////////////
+FboInfo ssaoFB;
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -149,20 +153,21 @@ void loadShaders(bool is_reload)
 		depthProgram = shader;
 	}
 
-	shader = labhelper::loadShaderProgram("../lab6-shadowmaps/ssaoInput.vert",
-		"../lab6-shadowmaps/ssaoInput.frag");
+	shader = labhelper::loadShaderProgram("../project/ssaoInput.vert",
+		"../project/ssaoInput.frag");
 	if (shader != 0)
 	{
 		ssaoInputProgram = shader;
 	}
 
+	/*
 	shader = labhelper::loadShaderProgram("../lab6-shadowmaps/ssaoOutput.vert",
 		"../lab6-shadowmaps/ssaoOutput.frag");
 	if (shader != 0)
 	{
 		ssaoOutputProgram = shader;
 	}
-
+	*/
 
 
 }
@@ -375,7 +380,13 @@ void display(void)
 	///////////////////////////////////////////////////////////////////////////
 	// SSAO pass
 	///////////////////////////////////////////////////////////////////////////
-	glBindFramebuffer(GL_FRAMEBUFFER, )
+	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFB.framebufferId);
+	glViewport(0, 0, ssaoFB.width, ssaoFB.height);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	drawScene(ssaoInputProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
+	
 
 
 	///////////////////////////////////////////////////////////////////////////
