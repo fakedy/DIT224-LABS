@@ -29,6 +29,8 @@ using std::min;
 using std::max;
 
 
+FboInfo sceneFBO;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Shadow map
 ///////////////////////////////////////////////////////////////////////////////
@@ -61,6 +63,9 @@ int samples = 64;
 float hemisphere_radius = 0.5f;
 std::vector<glm::vec3> ssaoSamples;
 bool gpuSampling = false;
+bool ssaoAA = false;
+bool useSSAO = false;
+float ssaoBias = 0.125f;
 
 ///////////////////////////////////////////////////////////////////////////////
 // postfx
@@ -76,6 +81,8 @@ float previousTime = 0.0f;
 float deltaTime = 0.0f;
 bool showUI = false;
 int windowWidth, windowHeight;
+
+int currentColorOutput = 0;
 
 // Mouse input
 ivec2 g_prevMouseCoords = { -1, -1 };
@@ -292,6 +299,11 @@ void drawScene(GLuint currentShaderProgram,
 	labhelper::setUniformSlow(currentShaderProgram, "useSoftFalloff", useSoftFalloff ? 1 : 0);
 	labhelper::setUniformSlow(currentShaderProgram, "spotInnerAngle", std::cos(radians(innerSpotlightAngle)));
 
+	glActiveTexture(GL_TEXTURE9);
+	glBindTexture(GL_TEXTURE_2D, ssaoFBOutput.colorTextureTargets[0]);
+
+	labhelper::setUniformSlow(currentShaderProgram, "useSSAO", useSSAO);
+
 
 	glActiveTexture(GL_TEXTURE10);
 	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
@@ -440,6 +452,8 @@ void display(void)
 	labhelper::setUniformSlow(ssaoOutputProgram, "hemisphere_radius", hemisphere_radius);
 	labhelper::setUniformSlow(ssaoOutputProgram, "samples", samples, ssaoSamples.data());
 	labhelper::setUniformSlow(ssaoOutputProgram, "gpuSampling", gpuSampling);
+	labhelper::setUniformSlow(ssaoOutputProgram, "ssaoAA", ssaoAA);
+	labhelper::setUniformSlow(ssaoOutputProgram, "ssaoBias", ssaoBias);
 	
 	labhelper::drawFullScreenQuad();
 
@@ -447,10 +461,14 @@ void display(void)
 	// Draw from camera
 	///////////////////////////////////////////////////////////////////////////
 	
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO.framebufferId);
+	if (sceneFBO.width != windowWidth || sceneFBO.height != windowHeight)
+		sceneFBO.resize(windowWidth, windowHeight);
+
 	glViewport(0, 0, windowWidth, windowHeight);
 	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 
 	drawBackground(viewMatrix, projMatrix);
 	drawScene(shaderProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
@@ -466,8 +484,19 @@ void display(void)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glUseProgram(postfxProgram);
+
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, ssaoFBOutput.colorTextureTargets[0]);
+	switch (currentColorOutput) {
+	case 0: // shaded
+		glBindTexture(GL_TEXTURE_2D, sceneFBO.colorTextureTargets[0]);
+		break;
+	case 1: // normal
+		glBindTexture(GL_TEXTURE_2D, ssaoFB.colorTextureTargets[0]);
+		break;
+	case 2: // ssao
+		glBindTexture(GL_TEXTURE_2D, ssaoFBOutput.colorTextureTargets[0]);
+		break;
+	}
 	labhelper::drawFullScreenQuad();
 
 }
@@ -586,9 +615,17 @@ void gui()
 	            ImGui::GetIO().Framerate);
 	// ----------------------------------------------------------
 
+	ImGui::Checkbox("Use SSAO", &useSSAO);
 	ImGui::SliderInt("SSAO samples", &nof_samples, 0, 1024);
 	ImGui::SliderFloat("SSAO hemisphere radius", &hemisphere_radius, 0.0f, 1.0f);
+	ImGui::SliderFloat("SSAO bias", &ssaoBias, 0.0f, 0.5f);
 	ImGui::Checkbox("GPU SSAO sampling", &gpuSampling);
+	ImGui::Checkbox("SSAO AA", &ssaoAA);
+
+	ImGui::RadioButton("Shaded", &currentColorOutput, 0);
+	ImGui::RadioButton("Normal", &currentColorOutput, 1);
+	ImGui::RadioButton("SSAO", &currentColorOutput, 2);
+
 }
 
 int main(int argc, char* argv[])

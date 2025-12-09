@@ -62,6 +62,9 @@ uniform float spotOuterAngle;
 uniform float spotInnerAngle;
 uniform vec3 viewSpaceLightDir;
 
+uniform bool useSSAO;
+layout(binding = 9) uniform sampler2D ssaoMap;
+
 vec3 calculateDirectIllumiunation(vec3 wo, vec3 n, vec3 base_color)
 {
 	///////////////////////////////////////////////////////////////////////////
@@ -208,6 +211,10 @@ void main()
 
 	// Indirect illumination
 	vec3 indirect_illumination_term = calculateIndirectIllumination(wo, n, base_color);
+
+	if(useSSAO){
+		indirect_illumination_term *= texelFetch(ssaoMap, ivec2(gl_FragCoord.xy), 0).r;
+	}
 
 	///////////////////////////////////////////////////////////////////////////
 	// Add emissive term. If emissive texture exists, sample this term.

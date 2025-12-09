@@ -16,6 +16,8 @@ uniform float hemisphere_radius;
 
 uniform vec3 samples[64]; // need to match the cpu sample count
 uniform bool gpuSampling;
+uniform bool ssaoAA;
+uniform float ssaoBias;
 
 // PCG random generator for 3 16-bit unsigned ints
 uvec3 pcg3d16(uvec3 v)
@@ -100,7 +102,15 @@ void main(){
 
 
 	float fragmentDepth = texture(depthBufferTexture, texCoord).r;
+
+	// if its the background of the scene
+	if(fragmentDepth >= 1.0){
+		fragmentColor = vec4(1.0);
+		return;
+	}
+
 	vec3 vs_normal = normalize(texture(frameBufferTexture, texCoord).xyz);
+	vs_normal = normalize(vs_normal * 2.0 - 1.0); // make normals able to be negative
 
 	// Normalized Device Coordinates (clip space)
 	vec4 ndc = vec4(texCoord.x * 2.0 - 1.0, texCoord.y * 2.0 - 1.0, fragmentDepth * 2.0 - 1.0, 1.0);
@@ -116,10 +126,26 @@ void main(){
     int num_visible_samples = 0; 
     int num_valid_samples = 0; 
 
+	// get us a value between 0 and 2PI
+	float randValue = randf(vec3(gl_FragCoord.xy, 0.0)).x;
+	randValue = randValue * 2.0 * M_PI;
+	float cosTheta = cos(randValue);
+	float sinTheta = sin(randValue);
+
 	if(gpuSampling){
 		for (int i = 0; i < nof_samples; i++) {
 			// Project an hemishere sample onto the local base
-			vec3 s = tbn * sampleHemisphereVolumeCosine(i);
+			vec3 s = sampleHemisphereVolumeCosine(i);
+
+			if(ssaoAA){	
+				float sampleX = s.x;
+				float sampleY = s.y;
+				s.x = sampleX * cosTheta - sampleY * sinTheta;
+				s.y = sampleX * sinTheta + sampleY * cosTheta;
+			}
+
+			s = tbn * s;
+
 
 			// compute view-space position of sample
 			vec3 vs_sample_position = vs_pos + s * hemisphere_radius;
@@ -136,25 +162,34 @@ void main(){
 			// Find the view-space coord of the blocker
 			vec3 vs_blocker_pos = homogenize(inverseProjectionMatrix * vec4(sample_coords.xy, blocker_depth * 2.0 - 1.0, 1.0));    
 
-			// If the blocker is futher away than the sample position, then
-			// the sample is valid and visible
+			// if the blocker is not within radius
 			if (abs(vs_pos.z - vs_blocker_pos.z) > hemisphere_radius){
 				num_visible_samples++;
-				num_valid_samples++;
+			} else {
+				// if there is a blocker and its infront of the sample
+				if(vs_blocker_pos.z > vs_sample_position.z + ssaoBias){
+					// its not visible
+				} else { // the blocker is behind
+					num_visible_samples++;
+				}
 			}
 
-			// Otherwise, if the sample is inside the hemisphere
-			// i.e. the distance from vs_pos to the blocker is smaller than the hemisphere_radius
-			// then the sample is valid, but occluded
-			if(abs(vs_pos.z - vs_blocker_pos.z) < hemisphere_radius){
-				num_valid_samples++;
-			}
+			num_valid_samples++;
 		}
 
 	} else {
 
 		for(int i = 0; i < 64; i++){
-			vec3 s = tbn * samples[i];
+			vec3 s = samples[i];
+
+			if(ssaoAA){	
+				float sampleX = s.x;
+				float sampleY = s.y;
+				s.x = sampleX * cosTheta - sampleY * sinTheta;
+				s.y = sampleX * sinTheta + sampleY * cosTheta;
+			}
+
+			s = tbn * s;
 
 			// compute view-space position of sample
 			vec3 vs_sample_position = vs_pos + s * hemisphere_radius;
@@ -168,22 +203,22 @@ void main(){
 			// Sample the depth-buffer at a texture coord based on the ndc-coord of the sample
 			float blocker_depth = texture(depthBufferTexture, sample_coords).r;
 
-			// Find the view-space coord of the blocker
-			vec3 vs_blocker_pos = homogenize(inverseProjectionMatrix * vec4(sample_coords.xy, blocker_depth * 2.0 - 1.0, 1.0));    
+			// Find the view-space coord of the blocker    
+			vec3 vs_blocker_pos = homogenize(inverseProjectionMatrix * vec4(sample_coords_ndc.xy, blocker_depth * 2.0 - 1.0, 1.0));
 
-			// If the blocker is futher away than the sample position, then
-			// the sample is valid and visible
+			// if the blocker is not within radius
 			if (abs(vs_pos.z - vs_blocker_pos.z) > hemisphere_radius){
 				num_visible_samples++;
-				num_valid_samples++;
+			} else {
+				// if there is a blocker and its infront of the sample
+				if(vs_blocker_pos.z > vs_sample_position.z + ssaoBias){
+					// its not visible
+				} else { // the blocker is behind
+					num_visible_samples++;
+				}
 			}
 
-			// Otherwise, if the sample is inside the hemisphere
-			// i.e. the distance from vs_pos to the blocker is smaller than the hemisphere_radius
-			// then the sample is valid, but occluded
-			if(abs(vs_pos.z - vs_blocker_pos.z) < hemisphere_radius){
-				num_valid_samples++;
-			}
+			num_valid_samples++;
 
 		}
 
@@ -193,7 +228,7 @@ void main(){
 
 	if (num_valid_samples > 0)
 	{
-		visibility = 1.0 - float(num_visible_samples) / float(num_valid_samples);
+		visibility = float(num_visible_samples) / float(num_valid_samples);
 	}
 
 
