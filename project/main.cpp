@@ -53,8 +53,14 @@ float polygonOffset_units = 6800.0f;
 ///////////////////////////////////////////////////////////////////////////////
 FboInfo ssaoFB;
 FboInfo ssaoFBOutput;
+
+// for gpu sampling
 int nof_samples = 64;
+// for cpu sampling
+int samples = 64;
 float hemisphere_radius = 0.5f;
+std::vector<glm::vec3> ssaoSamples;
+bool gpuSampling = false;
 
 ///////////////////////////////////////////////////////////////////////////////
 // postfx
@@ -222,6 +228,15 @@ void initialize()
 	environmentMap = labhelper::loadHdrTexture("../scenes/envmaps/" + envmap_base_name + ".hdr");
 	irradianceMap = labhelper::loadHdrTexture("../scenes/envmaps/" + envmap_base_name + "_irradiance.hdr");
 	reflectionMap = labhelper::loadHdrMipmapTexture(filenames);
+
+
+
+	for (size_t i = 0; i < samples; i++)
+	{
+		vec3 sample = labhelper::cosineSampleHemisphere();
+		sample = sample * labhelper::randf();
+		ssaoSamples.push_back(sample);
+	}
 
 
 
@@ -420,7 +435,11 @@ void display(void)
 	labhelper::setUniformSlow(ssaoOutputProgram, "projectionMatrix", projMatrix);
 
 	labhelper::setUniformSlow(ssaoOutputProgram, "nof_samples", nof_samples);
+
+
 	labhelper::setUniformSlow(ssaoOutputProgram, "hemisphere_radius", hemisphere_radius);
+	labhelper::setUniformSlow(ssaoOutputProgram, "samples", samples, ssaoSamples.data());
+	labhelper::setUniformSlow(ssaoOutputProgram, "gpuSampling", gpuSampling);
 	
 	labhelper::drawFullScreenQuad();
 
@@ -569,6 +588,7 @@ void gui()
 
 	ImGui::SliderInt("SSAO samples", &nof_samples, 0, 1024);
 	ImGui::SliderFloat("SSAO hemisphere radius", &hemisphere_radius, 0.0f, 1.0f);
+	ImGui::Checkbox("GPU SSAO sampling", &gpuSampling);
 }
 
 int main(int argc, char* argv[])
